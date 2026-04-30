@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HealthAI — My Reports</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    .history-wrap { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+    .report-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 24px; margin-bottom: 16px; display: flex; align-items: center; gap: 20px; transition: all 0.2s; cursor: pointer; }
+    .report-card:hover { border-color: rgba(0,229,255,0.3); transform: translateY(-2px); }
+    .report-score { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 1.1rem; font-weight: 800; color: white; flex-shrink: 0; }
+    .report-info { flex: 1; }
+    .report-filename { font-family: var(--font-display); font-weight: 700; margin-bottom: 4px; }
+    .report-date { font-size: 0.82rem; color: var(--text-muted); }
+    .report-summary { font-size: 0.85rem; color: var(--text-secondary); margin-top: 6px; line-height: 1.5; }
+    .report-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .btn-view { padding: 8px 16px; background: rgba(0,229,255,0.1); color: var(--cyan); border: 1px solid rgba(0,229,255,0.3); border-radius: 100px; font-size: 0.82rem; cursor: pointer; font-weight: 600; }
+    .btn-delete { padding: 8px 16px; background: rgba(255,82,82,0.1); color: var(--red); border: 1px solid rgba(255,82,82,0.3); border-radius: 100px; font-size: 0.82rem; cursor: pointer; }
+    .comparison-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 32px; margin-bottom: 40px; }
+    .chart-wrap { position: relative; height: 300px; margin-top: 24px; }
+    .empty-state { text-align: center; padding: 80px 24px; color: var(--text-muted); }
+    .empty-state h3 { font-family: var(--font-display); font-size: 1.5rem; margin-bottom: 12px; color: var(--text-secondary); }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: none; overflow-y: auto; padding: 40px 20px; }
+    .modal-overlay.show { display: flex; align-items: flex-start; justify-content: center; }
+    .modal-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 40px; max-width: 800px; width: 100%; position: relative; margin: auto; }
+    .modal-close { position: absolute; top: 20px; right: 20px; background: var(--bg-surface); border: none; color: var(--text-secondary); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 1rem; }
+    .param-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 16px; }
+    .param-table th { padding: 10px 14px; text-align: left; color: var(--text-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--border); }
+    .param-table td { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-glow bg-glow-1"></div>
+
+  <header class="header">
+    <div class="logo" onclick="window.location.href='app.html'" style="cursor:pointer">
+      <div class="logo-icon">
+        <svg viewBox="0 0 36 36" fill="none"><circle cx="18" cy="18" r="17" stroke="url(#lg1)" stroke-width="2"/><path d="M18 10v16M10 18h16" stroke="url(#lg2)" stroke-width="2.5" stroke-linecap="round"/><defs><linearGradient id="lg1" x1="0" y1="0" x2="36" y2="36"><stop stop-color="#00e5ff"/><stop offset="1" stop-color="#7c3aed"/></linearGradient><linearGradient id="lg2" x1="10" y1="18" x2="26" y2="18"><stop stop-color="#00e5ff"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs></svg>
+      </div>
+      <span class="logo-text">Health<span class="accent">AI</span></span>
+    </div>
+    <nav class="nav">
+      <a href="app.html">Analyze</a>
+      <a href="history.html" style="color:var(--cyan)">My Reports</a>
+      <span id="user-name-nav" style="color:var(--cyan); font-size:0.88rem; font-weight:600"></span>
+      <button onclick="logout()" style="background:rgba(255,82,82,0.1);color:#ff8a80;border:1px solid rgba(255,82,82,0.3);padding:6px 14px;border-radius:100px;font-size:0.8rem;cursor:pointer">Logout</button>
+    </nav>
+  </header>
+
+  <div class="history-wrap">
+    <div class="section-label">Your History</div>
+    <h1 class="section-title" style="margin-bottom:40px">My Reports</h1>
+
+    <div class="comparison-section" id="comparison-section" style="display:none">
+      <div class="section-label">Progress Tracking</div>
+      <h2 style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;margin-bottom:4px">Health Score Over Time</h2>
+      <p style="color:var(--text-muted);font-size:0.85rem">Compare your health across multiple reports</p>
+      <div class="chart-wrap"><canvas id="score-chart"></canvas></div>
+      <div id="param-comparison" style="margin-top:32px"></div>
+    </div>
+
+    <div id="reports-list"></div>
+  </div>
+
+  <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+    <div class="modal-content">
+      <button class="modal-close" onclick="document.getElementById('modal-overlay').classList.remove('show')">✕</button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    const API_BASE = 'http://localhost:8000';
+    if (!isLoggedIn()) window.location.href = 'login.html';
+    const user = getUser();
+    document.getElementById('user-name-nav').textContent = '👤 ' + user.name;
+
+    let allReports = [];
+    let scoreChart = null;
+
+    async function loadHistory() {
+      try {
+        const res = await fetch(`${API_BASE}/reports/history`, { headers: authHeaders() });
+        const data = await res.json();
+        allReports = data.reports || [];
+        renderReports(allReports);
+        if (allReports.length >= 2) loadComparison();
+      } catch(e) {
+        document.getElementById('reports-list').innerHTML = '<p style="color:var(--text-muted);padding:40px">Could not load reports. Make sure backend is running.</p>';
+      }
+    }
+
+    function renderReports(reports) {
+      const list = document.getElementById('reports-list');
+      if (!reports.length) {
+        list.innerHTML = `<div class="empty-state">
+          <div style="font-size:4rem;margin-bottom:16px">📋</div>
+          <h3>No Reports Yet</h3>
+          <p>Upload your first medical report to get started</p>
+          <button onclick="window.location.href='app.html'" style="margin-top:24px;padding:12px 32px;background:linear-gradient(135deg,var(--cyan),var(--purple));border:none;border-radius:100px;color:#080d1a;font-weight:700;cursor:pointer;font-size:0.95rem">Analyze Report →</button>
+        </div>`;
+        return;
+      }
+      list.innerHTML = reports.map(r => `
+        <div class="report-card" onclick="viewReport(${r.id})">
+          <div class="report-score" style="background:${getScoreColor(r.health_score)}">${r.health_score||'--'}</div>
+          <div class="report-info">
+            <div class="report-filename">📄 ${r.filename}</div>
+            <div class="report-date">${formatDate(r.uploaded_at)}</div>
+            <div class="report-summary">${(r.summary||'').substring(0,120)}...</div>
+          </div>
+          <div class="report-actions" onclick="event.stopPropagation()">
+            <button class="btn-view" onclick="viewReport(${r.id})">View</button>
+            <button class="btn-delete" onclick="deleteReport(${r.id})">🗑</button>
+          </div>
+        </div>`).join('');
+    }
+
+    async function loadComparison() {
+      try {
+        const res = await fetch(`${API_BASE}/reports/compare/all`, { headers: authHeaders() });
+        const data = await res.json();
+        document.getElementById('comparison-section').style.display = 'block';
+        renderScoreChart(data.comparison || []);
+        renderParamComparison(data.comparison || []);
+      } catch(e) {}
+    }
+
+    function renderScoreChart(comparison) {
+      const ctx = document.getElementById('score-chart').getContext('2d');
+      if (scoreChart) scoreChart.destroy();
+      scoreChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: comparison.map(r => formatDateShort(r.date)),
+          datasets: [{
+            label: 'Health Score',
+            data: comparison.map(r => r.health_score),
+            borderColor: '#00e5ff',
+            backgroundColor: 'rgba(0,229,255,0.1)',
+            pointBackgroundColor: '#00e5ff',
+            pointRadius: 6, tension: 0.4, fill: true,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#8ba3c7' } } },
+          scales: {
+            x: { ticks: { color: '#8ba3c7' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+            y: { min: 0, max: 100, ticks: { color: '#8ba3c7' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+          }
+        }
+      });
+    }
+
+    function renderParamComparison(comparison) {
+      const allParams = new Set();
+      comparison.forEach(r => Object.keys(r.parameters).forEach(p => allParams.add(p)));
+      const common = [...allParams].filter(p => comparison.every(r => r.parameters[p])).slice(0, 10);
+      if (!common.length) return;
+      document.getElementById('param-comparison').innerHTML = `
+        <h3 style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;margin-bottom:16px;color:var(--cyan)">Parameter Comparison</h3>
+        <div style="overflow-x:auto;border-radius:12px;border:1px solid var(--border)">
+          <table class="param-table">
+            <thead><tr><th>Parameter</th>${comparison.map(r=>`<th>${formatDateShort(r.date)}</th>`).join('')}</tr></thead>
+            <tbody>${common.map(p=>`<tr>
+              <td style="color:var(--text-primary);font-weight:500">${p}</td>
+              ${comparison.map(r=>`<td style="color:var(--cyan)">${r.parameters[p]||'--'}</td>`).join('')}
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>`;
+    }
+
+    function viewReport(id) {
+      const report = allReports.find(r => r.id === id);
+      if (!report) return;
+      const analysis = report.analysis;
+      const allVals = [...(analysis.normal_values||[]).map(v=>({...v,risky:false})), ...(analysis.abnormal_values||[]).map(v=>({...v,risky:true}))];
+      document.getElementById('modal-body').innerHTML = `
+        <div class="section-label">Report Details</div>
+        <h2 style="font-family:var(--font-display);font-size:1.5rem;font-weight:700;margin-bottom:4px">${report.filename}</h2>
+        <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:24px">${formatDate(report.uploaded_at)}</p>
+        <div style="display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap">
+          <div style="background:var(--bg-surface);border-radius:12px;padding:16px 24px;text-align:center">
+            <div style="font-family:var(--font-display);font-size:2rem;font-weight:800;background:linear-gradient(135deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent">${report.health_score}</div>
+            <div style="font-size:0.75rem;color:var(--text-muted)">Health Score</div>
+          </div>
+          <div style="flex:1;background:var(--bg-surface);border-radius:12px;padding:16px 20px">
+            <p style="color:var(--text-secondary);font-size:0.9rem;line-height:1.7">${analysis.summary||''}</p>
+          </div>
+        </div>
+        <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:700;margin-bottom:12px">All Parameters</h3>
+        <div style="overflow-x:auto;border-radius:12px;border:1px solid var(--border)">
+          <table class="param-table">
+            <thead><tr><th>Test</th><th>Value</th><th>Normal Range</th><th>Status</th></tr></thead>
+            <tbody>${allVals.map(v=>`<tr>
+              <td>${v.parameter}</td>
+              <td style="color:${v.risky?'var(--red)':'var(--green)'};font-weight:600">${v.value}</td>
+              <td style="color:var(--text-muted)">${v.normal_range||'--'}</td>
+              <td><span style="padding:3px 10px;border-radius:100px;font-size:0.72rem;font-weight:700;background:${v.risky?'rgba(255,82,82,0.12)':'rgba(0,230,118,0.1)'};color:${v.risky?'var(--red)':'var(--green)'}">${v.risky?'⚠️ Risky':'✅ Safe'}</span></td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>`;
+      document.getElementById('modal-overlay').classList.add('show');
+    }
+
+    function closeModal(e) {
+      if (e.target === document.getElementById('modal-overlay'))
+        document.getElementById('modal-overlay').classList.remove('show');
+    }
+
+    async function deleteReport(id) {
+      if (!confirm('Delete this report?')) return;
+      try {
+        await fetch(`${API_BASE}/reports/${id}`, { method: 'DELETE', headers: authHeaders() });
+        allReports = allReports.filter(r => r.id !== id);
+        renderReports(allReports);
+        if (allReports.length >= 2) loadComparison();
+        else document.getElementById('comparison-section').style.display = 'none';
+      } catch(e) { alert('Could not delete'); }
+    }
+
+    function getScoreColor(s) {
+      if (s >= 80) return 'linear-gradient(135deg,#00e676,#00b248)';
+      if (s >= 60) return 'linear-gradient(135deg,#00e5ff,#7c3aed)';
+      return 'linear-gradient(135deg,#ff5252,#d50000)';
+    }
+    function formatDate(iso) {
+      return new Date(iso).toLocaleDateString('en-IN', {day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    }
+    function formatDateShort(iso) {
+      return new Date(iso).toLocaleDateString('en-IN', {day:'numeric',month:'short'});
+    }
+
+    loadHistory();
+  </script>
+</body>
+</html>

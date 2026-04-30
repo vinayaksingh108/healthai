@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HealthAI — Smart Medical Report Analysis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <header class="header">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="18" cy="18" r="17" stroke="url(#lg1)" stroke-width="2"/>
+          <path d="M18 10v16M10 18h16" stroke="url(#lg2)" stroke-width="2.5" stroke-linecap="round"/>
+          <defs>
+            <linearGradient id="lg1" x1="0" y1="0" x2="36" y2="36"><stop stop-color="#00e5ff"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
+            <linearGradient id="lg2" x1="10" y1="18" x2="26" y2="18"><stop stop-color="#00e5ff"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <span class="logo-text">Health<span class="accent">AI</span></span>
+    </div>
+    <nav class="nav">
+      <a href="#upload-section">Analyze</a>
+      <a href="history.html">My Reports</a>
+      <a href="#all-doctors-full">Doctors</a>
+      <div class="status-badge" id="status-badge">
+        <span class="status-dot"></span>
+        <span id="status-text">Checking...</span>
+      </div>
+      <div id="user-menu" style="display:none;align-items:center;gap:8px">
+        <span id="user-name" style="color:var(--cyan);font-size:0.88rem;font-weight:600"></span>
+        <button onclick="logout()" style="background:rgba(255,82,82,0.1);color:#ff8a80;border:1px solid rgba(255,82,82,0.3);padding:6px 14px;border-radius:100px;font-size:0.8rem;cursor:pointer">Logout</button>
+      </div>
+      <a href="login.html" id="login-link" style="background:rgba(0,229,255,0.1);color:var(--cyan);border:1px solid rgba(0,229,255,0.3);padding:6px 16px;border-radius:100px;font-size:0.85rem;font-weight:600">Login</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div class="hero-tag">AI-Powered Health Intelligence</div>
+    <h1 class="hero-title">Understand Your<br/><span class="gradient-text">Medical Reports Instantly</span></h1>
+    <p class="hero-sub">Upload your medical report — AI will analyze everything.<br/>What's normal, what's not, which doctor to see, and what to eat.</p>
+    <div class="hero-stats">
+      <div class="stat"><span class="stat-num">50+</span><span class="stat-label">Parameters</span></div>
+      <div class="stat-divider"></div>
+      <div class="stat"><span class="stat-num">AI</span><span class="stat-label">Powered</span></div>
+      <div class="stat-divider"></div>
+      <div class="stat"><span class="stat-num">8+</span><span class="stat-label">Specialists</span></div>
+    </div>
+    <div class="formats-row">
+      <span class="format-chip pdf">📄 PDF</span>
+      <span class="format-chip img">🖼️ JPG</span>
+      <span class="format-chip img">🖼️ PNG</span>
+      <span class="format-chip img">🖼️ WEBP</span>
+      <span class="format-chip img">🖼️ BMP</span>
+      <span class="format-chip img">🖼️ TIFF</span>
+    </div>
+  </section>
+
+  <section class="upload-section" id="upload-section">
+    <div class="section-label">Step 01 — Upload</div>
+    <h2 class="section-title">Upload Your Report</h2>
+    <div class="upload-card" id="upload-card">
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png,.webp,.bmp,.tiff,.tif" hidden />
+        <div class="upload-icon">
+          <svg viewBox="0 0 64 64" fill="none"><rect x="8" y="12" width="48" height="40" rx="6" stroke="currentColor" stroke-width="2"/><path d="M22 32h20M32 22v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 8h24l4 4H16l4-4z" fill="currentColor" opacity="0.3"/></svg>
+        </div>
+        <p class="upload-main">Drop your file here or click to browse</p>
+        <div class="upload-formats"><span>Supports: </span><strong>PDF · JPG · PNG · WEBP · BMP · TIFF</strong></div>
+        <p class="upload-sub">Blood test, CBC, LFT, KFT, Thyroid, Lipid Panel & more</p>
+        <button class="upload-btn" onclick="event.stopPropagation(); document.getElementById('file-input').click()">Choose File</button>
+      </div>
+
+      <div class="file-preview hidden" id="file-preview">
+        <div class="file-icon" id="file-icon">📄</div>
+        <div class="file-info">
+          <p class="file-name" id="file-name">report.pdf</p>
+          <p class="file-size" id="file-size">2.4 MB</p>
+        </div>
+        <button class="remove-btn" onclick="removeFile()">✕</button>
+      </div>
+
+      <div class="img-preview-wrap hidden" id="img-preview-wrap">
+        <img id="img-preview" src="" alt="Report preview" class="img-preview" />
+        <p class="img-preview-label">Image preview</p>
+      </div>
+
+      <button class="analyze-btn" id="analyze-btn" onclick="analyzeReport()" disabled>
+        <span class="btn-text">Analyze Report</span>
+        <span class="btn-icon">→</span>
+      </button>
+    </div>
+
+    <div class="loading-state hidden" id="loading-state">
+      <div class="pulse-rings">
+        <div class="ring ring-1"></div>
+        <div class="ring ring-2"></div>
+        <div class="ring ring-3"></div>
+        <div class="heartbeat-icon">♥</div>
+      </div>
+      <p class="loading-text" id="loading-text">Reading your report...</p>
+      <p class="loading-sub">AI is analyzing your report, results will appear shortly</p>
+    </div>
+  </section>
+
+  <section class="results-section hidden" id="results-section">
+    <div class="score-card" id="score-card">
+      <div class="score-header">
+        <div>
+          <div class="section-label">Health Score</div>
+          <h2 class="score-title">Overall Assessment</h2>
+        </div>
+        <div class="score-circle-wrap">
+          <svg class="score-svg" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="#1a2340" stroke-width="10"/>
+            <circle cx="60" cy="60" r="50" fill="none" stroke="url(#scoreGrad)" stroke-width="10" stroke-dasharray="314" stroke-dashoffset="314" stroke-linecap="round" transform="rotate(-90 60 60)" id="score-arc"/>
+            <defs><linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#00e5ff"/><stop offset="100%" stop-color="#7c3aed"/></linearGradient></defs>
+          </svg>
+          <div class="score-num" id="score-num">--</div>
+        </div>
+      </div>
+      <div class="urgent-banner hidden" id="urgent-banner">⚠️ <strong>Seek Immediate Medical Attention!</strong> <span id="urgent-reason"></span></div>
+      <p class="score-summary" id="score-summary"></p>
+    </div>
+
+    <div class="tabs-container">
+      <div class="tabs">
+        <button class="tab active" data-tab="overview">📊 Overview</button>
+        <button class="tab" data-tab="normal">✅ Normal Values</button>
+        <button class="tab" data-tab="abnormal">⚠️ Abnormal Values</button>
+        <button class="tab" data-tab="diet">🥗 Diet & Food</button>
+        <button class="tab" data-tab="treatment">💊 Treatment</button>
+      </div>
+      <div class="tab-content active" id="tab-overview">
+        <div class="problems-grid" id="problems-grid"></div>
+        <div class="lifestyle-card"><h3>🧘 Lifestyle Changes</h3><ul class="lifestyle-list" id="lifestyle-list"></ul></div>
+      </div>
+      <div class="tab-content hidden" id="tab-normal"><div class="values-grid" id="normal-grid"></div></div>
+      <div class="tab-content hidden" id="tab-abnormal"><div class="values-grid" id="abnormal-grid"></div></div>
+      <div class="tab-content hidden" id="tab-diet"><div class="diet-grid" id="diet-grid"></div></div>
+      <div class="tab-content hidden" id="tab-treatment"><div class="treatment-list" id="treatment-list"></div></div>
+    </div>
+
+    <div class="doctors-section" id="doctors-section">
+      <div class="section-label">Recommended</div>
+      <h2 class="section-title">Suggested Doctors</h2>
+      <p class="section-desc">Based on your report, consult these specialists</p>
+      <div class="doctors-grid" id="doctors-grid"></div>
+    </div>
+
+    <div class="reset-section">
+      <button class="reset-btn" onclick="resetAnalysis()">+ Analyze Another Report</button>
+    </div>
+  </section>
+
+  <section class="all-doctors-section" id="all-doctors-full">
+    <div class="section-label">Our Network</div>
+    <h2 class="section-title">All Doctors</h2>
+    <div class="all-doctors-grid" id="all-doctors-grid"></div>
+  </section>
+
+  <footer class="footer">
+    <div class="footer-logo">Health<span class="accent">AI</span></div>
+    <p class="footer-disclaimer">⚠️ This tool is for educational purposes only. Always consult a qualified doctor before making any health decisions.</p>
+    <p class="footer-copy">Made with ❤️ for better health awareness</p>
+  </footer>
+
+  <script src="auth.js"></script>
+  <script src="app.js"></script>
+  <script>
+    const u = getUser();
+    if (u) {
+      document.getElementById('user-menu').style.display = 'flex';
+      document.getElementById('user-name').textContent = '👤 ' + u.name;
+      document.getElementById('login-link').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

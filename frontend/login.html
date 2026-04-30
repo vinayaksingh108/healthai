@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HealthAI — Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    .auth-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .auth-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 48px 40px; width: 100%; max-width: 440px; }
+    .auth-logo { text-align: center; margin-bottom: 32px; }
+    .auth-logo .logo-text { font-family: var(--font-display); font-size: 2rem; font-weight: 800; }
+    .auth-tabs { display: flex; background: var(--bg-surface); border-radius: var(--radius-sm); padding: 4px; margin-bottom: 32px; }
+    .auth-tab { flex: 1; padding: 10px; text-align: center; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; color: var(--text-muted); transition: all 0.2s; border: none; background: none; }
+    .auth-tab.active { background: var(--bg-card); color: var(--cyan); }
+    .form-group { margin-bottom: 20px; }
+    .form-label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .form-input { width: 100%; padding: 12px 16px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 0.95rem; outline: none; transition: border-color 0.2s; box-sizing: border-box; font-family: var(--font-body); }
+    .form-input:focus { border-color: var(--cyan); }
+    .auth-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--cyan), var(--purple)); color: #080d1a; border: none; border-radius: var(--radius-sm); font-family: var(--font-display); font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.3s; margin-top: 8px; }
+    .auth-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(0,229,255,0.3); }
+    .auth-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .auth-error { background: rgba(255,82,82,0.1); border: 1px solid rgba(255,82,82,0.3); color: #ff8a80; padding: 12px 16px; border-radius: var(--radius-sm); font-size: 0.88rem; margin-bottom: 16px; display: none; }
+    .auth-success { background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.3); color: var(--green); padding: 12px 16px; border-radius: var(--radius-sm); font-size: 0.88rem; margin-bottom: 16px; display: none; }
+    .divider { text-align: center; color: var(--text-muted); font-size: 0.82rem; margin: 20px 0; }
+    .guest-btn { width: 100%; padding: 12px; background: transparent; color: var(--text-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.9rem; cursor: pointer; transition: all 0.2s; }
+    .guest-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="logo-text">Health<span class="accent">AI</span></div>
+        <p style="color:var(--text-muted);font-size:0.88rem;margin-top:6px">AI-Powered Medical Report Analysis</p>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchTab('login')">Login</button>
+        <button class="auth-tab" onclick="switchTab('register')">Register</button>
+      </div>
+
+      <div id="auth-error" class="auth-error"></div>
+      <div id="auth-success" class="auth-success"></div>
+
+      <div id="login-form">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="login-email" class="form-input" placeholder="you@example.com"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="login-password" class="form-input" placeholder="Your password"/>
+        </div>
+        <button class="auth-btn" onclick="handleLogin()">Login →</button>
+      </div>
+
+      <div id="register-form" style="display:none">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input type="text" id="reg-name" class="form-input" placeholder="Your name"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="reg-email" class="form-input" placeholder="you@example.com"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="reg-password" class="form-input" placeholder="Min 6 characters"/>
+        </div>
+        <button class="auth-btn" onclick="handleRegister()">Create Account →</button>
+      </div>
+
+      <div class="divider">— or —</div>
+      <button class="guest-btn" onclick="window.location.href='app.html'">Continue as Guest</button>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    if (isLoggedIn()) window.location.href = 'app.html';
+
+    function switchTab(tab) {
+      document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register')));
+      document.getElementById('login-form').style.display = tab==='login'?'block':'none';
+      document.getElementById('register-form').style.display = tab==='register'?'block':'none';
+      document.getElementById('auth-error').style.display = 'none';
+      document.getElementById('auth-success').style.display = 'none';
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('auth-error');
+      el.textContent = msg; el.style.display = 'block';
+      document.getElementById('auth-success').style.display = 'none';
+    }
+    function showSuccess(msg) {
+      const el = document.getElementById('auth-success');
+      el.textContent = msg; el.style.display = 'block';
+      document.getElementById('auth-error').style.display = 'none';
+    }
+
+    async function handleLogin() {
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      if (!email || !password) { showError('Please fill all fields'); return; }
+      const btn = document.querySelector('#login-form .auth-btn');
+      btn.disabled = true; btn.textContent = 'Logging in...';
+      try {
+        await login(email, password);
+        showSuccess('Login successful! Redirecting...');
+        setTimeout(() => window.location.href = 'app.html', 1000);
+      } catch(e) {
+        showError(e.message);
+        btn.disabled = false; btn.textContent = 'Login →';
+      }
+    }
+
+    async function handleRegister() {
+      const name = document.getElementById('reg-name').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
+      const password = document.getElementById('reg-password').value;
+      if (!name||!email||!password) { showError('Please fill all fields'); return; }
+      if (password.length < 6) { showError('Password must be at least 6 characters'); return; }
+      const btn = document.querySelector('#register-form .auth-btn');
+      btn.disabled = true; btn.textContent = 'Creating account...';
+      try {
+        await register(name, email, password);
+        showSuccess('Account created! Redirecting...');
+        setTimeout(() => window.location.href = 'app.html', 1000);
+      } catch(e) {
+        showError(e.message);
+        btn.disabled = false; btn.textContent = 'Create Account →';
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const loginVisible = document.getElementById('login-form').style.display !== 'none';
+      if (loginVisible) handleLogin(); else handleRegister();
+    });
+  </script>
+</body>
+</html>
