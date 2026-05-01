@@ -1,5 +1,3 @@
-
-
 function getToken() { return localStorage.getItem('healthai_token'); }
 function getUser() { return JSON.parse(localStorage.getItem('healthai_user') || 'null'); }
 function setAuth(token, user) {
