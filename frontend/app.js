@@ -1,5 +1,5 @@
 // HealthAI — Frontend Logic v2.0
-const API_BASE = 'https://healthai-production-5bd2.up.railway.app';
+
 let selectedFile = null;
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff', '.tif'];
 const LOADING_TEXTS = ['Reading your report...','Extracting values...','Analyzing health parameters...','Detecting abnormalities...','Generating diet recommendations...','Matching specialist doctors...','Finalizing your report...'];
