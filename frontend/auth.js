@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8000';
+
 
 function getToken() { return localStorage.getItem('healthai_token'); }
 function getUser() { return JSON.parse(localStorage.getItem('healthai_user') || 'null'); }
