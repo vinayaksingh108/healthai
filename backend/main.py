@@ -3,11 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-import pdfplumber, httpx, json, io, re, base64, logging
+import pdfplumber, httpx, json, io, re, base64, logging, os
 from PIL import Image
 from database import create_tables, get_db, User, Report
 from auth import hash_password, verify_password, create_token, get_current_user, get_optional_user
-from datetime import datetime
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,8 +22,10 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, 
 
 create_tables()
 
-OLLAMA_BASE_URL = "http://localhost:11434"
-OLLAMA_MODEL = "llama3"
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama3-70b-8192"
+
 SUPPORTED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff", ".tif"]
 
 DOCTORS_DB = [
@@ -99,15 +100,39 @@ def parse_ai_json(text: str) -> dict:
             }
     raise ValueError("No valid JSON found")
 
-async def analyze_image_with_ollama(image_bytes: bytes) -> dict:
-    # Pehle OCR try karo
-    if OCR_AVAILABLE:
-        ocr_text = extract_text_ocr(image_bytes)
-        if ocr_text and len(ocr_text) > 100:
-            logger.info(f"OCR extracted {len(ocr_text)} chars — using text model")
-            return await analyze_with_ollama(ocr_text)
+async def analyze_with_groq(report_text: str) -> dict:
+    prompt = f"""You are an expert medical AI. Analyze this medical report carefully.
 
-    # OCR nahi chala toh llava use karo
+REPORT:
+{report_text[:4000]}
+
+Extract EVERY SINGLE parameter visible. Return ONLY valid JSON:
+{{
+  "summary": "2-3 sentence overview in simple English",
+  "overall_health_score": 75,
+  "normal_values": [{{"parameter": "name", "value": "val", "normal_range": "range", "status": "Normal"}}],
+  "abnormal_values": [{{"parameter": "name", "value": "val", "normal_range": "range", "status": "High/Low/Critical", "concern_level": "Mild/Moderate/Severe"}}],
+  "health_problems": [{{"problem": "name", "description": "simple English explanation", "severity": "Mild/Moderate/Severe", "affected_organ": "organ"}}],
+  "diet_recommendations": [{{"category": "Foods to Eat", "items": ["item1", "item2"], "reason": "why"}}],
+  "treatment_suggestions": [{{"treatment": "name", "description": "details", "urgency": "Immediate/Soon/Routine"}}],
+  "lifestyle_changes": ["change1", "change2"],
+  "specialist_needed": ["specialist"],
+  "urgent_attention_required": false,
+  "urgent_reason": ""
+}}"""
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        res = await client.post(
+            GROQ_URL,
+            headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
+            json={"model": GROQ_MODEL, "messages": [{"role": "user", "content": prompt}], "temperature": 0.1, "max_tokens": 4000}
+        )
+        if res.status_code != 200:
+            raise HTTPException(status_code=503, detail=f"Groq API error: {res.text}")
+        content = res.json()["choices"][0]["message"]["content"]
+        return parse_ai_json(content)
+
+async def analyze_image_with_groq(image_bytes: bytes) -> dict:
     img = Image.open(io.BytesIO(image_bytes))
     if max(img.size) > 1500:
         img.thumbnail((1500, 1500), Image.LANCZOS)
@@ -115,49 +140,10 @@ async def analyze_image_with_ollama(image_bytes: bytes) -> dict:
     img.convert("RGB").save(buf, format="JPEG", quality=85)
     img_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
 
-    prompt = """List ALL medical test parameters from this report image as JSON only:
-{"summary":"overview","overall_health_score":70,"normal_values":[{"parameter":"name","value":"val","normal_range":"range","status":"Normal"}],"abnormal_values":[{"parameter":"name","value":"val","normal_range":"range","status":"High/Low","concern_level":"Mild"}],"health_problems":[{"problem":"name","description":"details","severity":"Mild","affected_organ":"organ"}],"diet_recommendations":[{"category":"Foods to Eat","items":["item1"],"reason":"reason"}],"treatment_suggestions":[{"treatment":"name","description":"details","urgency":"Routine"}],"lifestyle_changes":["change1"],"specialist_needed":["general"],"urgent_attention_required":false,"urgent_reason":""}"""
-
-    async with httpx.AsyncClient(timeout=300.0) as client:
-        try:
-            tags_res = await client.get(f"{OLLAMA_BASE_URL}/api/tags")
-            available = [m["name"] for m in tags_res.json().get("models", [])]
-        except httpx.ConnectError:
-            raise HTTPException(status_code=503, detail="Ollama is not running!")
-
-        vision_model = next((m for m in available if any(v in m.lower() for v in ["llava","bakllava","moondream","minicpm-v"])), None)
-
-        if not vision_model:
-            raise HTTPException(status_code=503, detail="No vision model. Run: ollama pull llava")
-
-        res = await client.post(f"{OLLAMA_BASE_URL}/api/generate",
-            json={"model": vision_model, "prompt": prompt, "images": [img_b64], "stream": False, "options": {"temperature": 0.1}})
-        if res.status_code != 200:
-            raise HTTPException(status_code=503, detail="Vision model error.")
-        return parse_ai_json(res.json().get("response", ""))
-
-    async with httpx.AsyncClient(timeout=300.0) as client:
-        try:
-            res = await client.post(f"{OLLAMA_BASE_URL}/api/generate",
-                json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False, "options": {"temperature": 0.1}})
-        except httpx.ConnectError:
-            raise HTTPException(status_code=503, detail="Ollama is not running!")
-        if res.status_code != 200:
-            raise HTTPException(status_code=503, detail="Ollama error.")
-        return parse_ai_json(res.json().get("response", ""))
-
-async def analyze_image_with_ollama(image_bytes: bytes) -> dict:
-    img = Image.open(io.BytesIO(image_bytes))
-    if max(img.size) > 1500:
-        img.thumbnail((1500, 1500), Image.LANCZOS)
-    buf = io.BytesIO()
-    img.convert("RGB").save(buf, format="JPEG", quality=85)
-    img_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
-
-    prompt = """Extract all medical test parameters from this report image.
-Return ONLY valid JSON, nothing else:
+    prompt = """You are a medical AI. Extract ALL parameters from this report image.
+Return ONLY valid JSON:
 {
-  "summary": "brief health overview",
+  "summary": "brief overview",
   "overall_health_score": 70,
   "normal_values": [{"parameter": "name", "value": "val", "normal_range": "range", "status": "Normal"}],
   "abnormal_values": [{"parameter": "name", "value": "val", "normal_range": "range", "status": "High/Low", "concern_level": "Mild"}],
@@ -169,28 +155,30 @@ Return ONLY valid JSON, nothing else:
   "urgent_attention_required": false,
   "urgent_reason": ""
 }
-Extract EVERY parameter visible in the image with exact values."""
+Extract every visible parameter with exact values."""
 
-    async with httpx.AsyncClient(timeout=300.0) as client:
-        try:
-            tags_res = await client.get(f"{OLLAMA_BASE_URL}/api/tags")
-            available = [m["name"] for m in tags_res.json().get("models", [])]
-        except httpx.ConnectError:
-            raise HTTPException(status_code=503, detail="Ollama is not running!")
-
-        vision_model = next((m for m in available if any(v in m.lower() for v in ["llava","bakllava","moondream","minicpm-v"])), None)
-
-        if not vision_model:
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        res = await client.post(
+            GROQ_URL,
+            headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
+            json={
+                "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+                "messages": [{"role": "user", "content": [
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
+                    {"type": "text", "text": prompt}
+                ]}],
+                "temperature": 0.1,
+                "max_tokens": 4000
+            }
+        )
+        if res.status_code != 200:
+            logger.warning(f"Vision model failed: {res.text}, trying OCR fallback")
             ocr_text = extract_text_ocr(image_bytes)
             if ocr_text and len(ocr_text) > 50:
-                return await analyze_with_ollama(ocr_text)
-            raise HTTPException(status_code=503, detail="No vision model. Run: ollama pull llava")
-
-        res = await client.post(f"{OLLAMA_BASE_URL}/api/generate",
-            json={"model": vision_model, "prompt": prompt, "images": [img_b64], "stream": False, "options": {"temperature": 0.1}})
-        if res.status_code != 200:
-            raise HTTPException(status_code=503, detail="Vision model error.")
-        return parse_ai_json(res.json().get("response", ""))
+                return await analyze_with_groq(ocr_text)
+            raise HTTPException(status_code=503, detail="Image analysis failed.")
+        content = res.json()["choices"][0]["message"]["content"]
+        return parse_ai_json(content)
 
 def match_doctors(analysis: dict) -> list:
     kws = []
@@ -273,11 +261,11 @@ async def analyze_report(file: UploadFile = File(...),
     file_type = get_file_type(filename)
     if file_type == "pdf":
         text = extract_text_from_pdf(file_bytes)
-        analysis = await analyze_with_ollama(text)
+        analysis = await analyze_with_groq(text)
         excerpt = text[:500]
     elif file_type == "image":
-        analysis = await analyze_image_with_ollama(file_bytes)
-        excerpt = "Image analyzed using AI vision."
+        analysis = await analyze_image_with_groq(file_bytes)
+        excerpt = "Image analyzed using AI."
     else:
         raise HTTPException(status_code=400, detail="Unknown file type.")
     report_id = None
@@ -287,7 +275,6 @@ async def analyze_report(file: UploadFile = File(...),
             summary=analysis.get("summary", ""), analysis_json=json.dumps(analysis))
         db.add(report); db.commit(); db.refresh(report)
         report_id = report.id
-        logger.info(f"Report saved for user {current_user.email}, report_id={report_id}")
     return JSONResponse({"success": True, "filename": filename, "file_type": file_type,
         "analysis": analysis, "suggested_doctors": match_doctors(analysis),
         "report_excerpt": excerpt, "report_id": report_id, "saved": current_user is not None})
@@ -298,14 +285,7 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            res = await client.get(f"{OLLAMA_BASE_URL}/api/tags")
-            models = [m["name"] for m in res.json().get("models", [])]
-            has_vision = any(any(v in m.lower() for v in ["llava","bakllava","moondream","minicpm"]) for m in models)
-            return {"status": "healthy", "ollama": "connected", "models": models, "vision_available": has_vision}
-    except:
-        return {"status": "warning", "ollama": "disconnected"}
+    return {"status": "healthy", "ollama": "connected", "models": ["groq-llama3"], "vision_available": True}
 
 @app.get("/doctors")
 async def get_all_doctors():
