@@ -1,4 +1,4 @@
-const API_BASE = 'https://healthai-production-5bd2.up.railway.app';
+const API_BASE = 'https://healthai-backend-44tu.onrender.com';
 function getToken() { return localStorage.getItem('healthai_token'); }
 function getUser() { return JSON.parse(localStorage.getItem('healthai_user') || 'null'); }
 function setAuth(token, user) {
